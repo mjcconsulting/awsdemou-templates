@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Users Template.
+  This creates IAM Users.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Stack Dependencies
+        Parameters:
+          - GroupsStackName
+      - Label:
+          default: User Configuration
+        Parameters:
+          - AdministratorPassword
+    ParameterLabels:
+      GroupsStackName:
+        default: Groups Stack Name
+      AdministratorPassword:
+        default: Administrator Password
+Parameters:
+  GroupsStackName:
+    Description: Name of the CloudFormation Stack containing Groups
+    Type: String
+    MinLength: 2
+    MaxLength: 64
+    Default: Groups
+    AllowedPattern: ^[A-Z][-a-zA-Z0-9]*$
+    ConstraintDescription: must begin with an upper case letter and contain alphanumeric characters and dashes.
+  AdministratorPassword:
+    Description: Optional password for the administrator User
+    Type: String
+    NoEcho: true
+    AllowedPattern: (?=^.{24,64}$)^.*
+    ConstraintDescription: must be 24 to 64 alphanumeric characters.
+Rules:
+  ValidateRegion:
+    Assertions:
+      - Assert: !Equals [ !Ref 'AWS::Region', us-east-1 ]
+        AssertDescription: This Template can only be used in Region us-east-1.
+Resources:
+  AdministratorUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: administrator
+      Path: /
+      LoginProfile:
+        Password: !Ref AdministratorPassword
+        PasswordResetRequired: true
+      Groups:
+        - !ImportValue
+          Fn::Sub: ${GroupsStackName}-AdministratorsGroup

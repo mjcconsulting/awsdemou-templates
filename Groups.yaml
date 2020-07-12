@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Groups Template.
+  This creates IAM Groups. Groups should be kept in 1:1 sync with Roles, to insure IAM Users and Federated Users have the same permissions.
+Rules:
+  ValidateRegion:
+    Assertions:
+      - Assert: !Equals [ !Ref 'AWS::Region', us-east-1 ]
+        AssertDescription: This Template can only be used in Region us-east-1.
+Resources:
+  AdministratorsGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: Administrators
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+Outputs:
+  AdministratorsGroup:
+    Description: The AdministratorsGroup Name
+    Value: !Ref AdministratorsGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-AdministratorsGroup
