@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: WordPressAmazonLinux2ImageCustomResource Template.
+  This demonstrates how to dynamically get the most recent WordPress Amazon Linux 2 Image.
+Parameters:
+  Region:
+    Description: Optional Region, specify to select a region other than the current region
+    Type: String
+    Default: ''
+    AllowedValues:
+      - ''
+      - us-east-1
+      - us-east-2
+      - us-west-2
+    ConstraintDescription: Must be a valid AWS region where this AMI has been deployed or blank.
+  Date:
+    Description: Optional WordPress Amazon Linux 2 Date, specify to select a specific publication date for the Image
+    Type: String
+    Default: 20200714
+    AllowedPattern: (^$|^20(1[8-9]|[2-9][0-9])(0[1-9]|1[0-2])(0[1-9]|[1-2][0-9]|3[0-1])$)
+    ConstraintDescription: Must be a valid date or blank.
+Conditions:
+  ConfigureRegion: !Not [ !Equals [ !Ref Region, '' ]]
+  ConfigureDate: !Not [ !Equals [ !Ref Date, '' ]]
+Resources:
+  LatestWordPressAmazonLinux2Image:
+    Type: Custom::WordPressAmazonLinux2Image
+    Properties:
+      ServiceToken: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:WordPressAmazonLinux2Image
+      Region: !If
+        - ConfigureRegion
+        - !Ref Region
+        - !Ref AWS::NoValue
+  SpecificWordPressAmazonLinux2Image:
+    Type: Custom::WordPressAmazonLinux2Image
+    Properties:
+      ServiceToken: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:WordPressAmazonLinux2Image
+      Region: !If
+        - ConfigureRegion
+        - !Ref Region
+        - !Ref AWS::NoValue
+      OSDate: !If
+        - ConfigureDate
+        - !Ref Date
+        - !Ref AWS::NoValue
+Outputs:
+  LatestImageId:
+    Description: The Latest ImageId
+    Value: !Ref LatestWordPressAmazonLinux2Image
+  LatestName:
+    Description: The Latest Image Name
+    Value: !GetAtt LatestWordPressAmazonLinux2Image.Name
+  SpecificImageId:
+    Description: The Specific ImageId
+    Value: !Ref SpecificWordPressAmazonLinux2Image
+  SpecificName:
+    Description: The Specific Image Name
+    Value: !GetAtt SpecificWordPressAmazonLinux2Image.Name
