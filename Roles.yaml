@@ -63,6 +63,13 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
         - arn:aws:iam::aws:policy/AmazonSSMDirectoryServiceAccess
         - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+  ManagedInstanceInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: ManagedInstance
+      Path: /
+      Roles:
+        - !Ref ManagedInstanceRole
 Outputs:
   AdministratorsRole:
     Description: The AdministratorsRole Name

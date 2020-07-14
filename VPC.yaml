@@ -173,7 +173,7 @@ Resources:
         - AmazonProvidedDNS
       Tags:
         - Key: Name
-          Value: !Sub ${EnvironmentName}-PrivateDHCPOptions
+          Value: !Sub ${EnvironmentName}-DHCPOptions
   VPCDHCPOptionsAssociation:
     Type: AWS::EC2::VPCDHCPOptionsAssociation
     Properties:
