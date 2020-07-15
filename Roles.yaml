@@ -45,6 +45,25 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AdministratorAccess
     Condition: ConfigureSamlRoles
+  ReviewersRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: Reviewers
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub arn:aws:iam::${AWS::AccountId}:saml-provider/${SamlProviderName}
+            Action:
+              - sts:AssumeRoleWithSAML
+            Condition:
+              StringEquals:
+                SAML:aud: https://signin.aws.amazon.com/saml
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/ReadOnlyAccess
+    Condition: ConfigureSamlRoles
   ManagedInstanceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -76,6 +95,12 @@ Outputs:
     Value: !Ref AdministratorsRole
     Export:
       Name: !Sub ${AWS::StackName}-AdministratorsRole
+    Condition: ConfigureSamlRoles
+  ReviewersRole:
+    Description: The ReviewersRole Name
+    Value: !Ref ReviewersRole
+    Export:
+      Name: !Sub ${AWS::StackName}-ReviewersRole
     Condition: ConfigureSamlRoles
   ManagedInstanceRole:
     Description: The ManagedInstanceRole Name

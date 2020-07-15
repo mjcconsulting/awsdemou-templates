@@ -12,11 +12,14 @@ Metadata:
           default: User Configuration
         Parameters:
           - AdministratorPassword
+          - ReviewerPassword
     ParameterLabels:
       GroupsStackName:
         default: Groups Stack Name
       AdministratorPassword:
         default: Administrator Password
+      ReviewerPassword:
+        default: Reviewer Password
 Parameters:
   GroupsStackName:
     Description: Name of the CloudFormation Stack containing Groups
@@ -28,6 +31,12 @@ Parameters:
     ConstraintDescription: must begin with an upper case letter and contain alphanumeric characters and dashes.
   AdministratorPassword:
     Description: Optional password for the administrator User
+    Type: String
+    NoEcho: true
+    AllowedPattern: (?=^.{24,64}$)^.*
+    ConstraintDescription: must be 24 to 64 alphanumeric characters.
+  ReviewerPassword:
+    Description: Optional password for the reviewer User
     Type: String
     NoEcho: true
     AllowedPattern: (?=^.{24,64}$)^.*
@@ -49,3 +58,14 @@ Resources:
       Groups:
         - !ImportValue
           Fn::Sub: ${GroupsStackName}-AdministratorsGroup
+  ReviewerUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: reviewer
+      Path: /
+      LoginProfile:
+        Password: !Ref ReviewerPassword
+        PasswordResetRequired: true
+      Groups:
+        - !ImportValue
+          Fn::Sub: ${GroupsStackName}-ReviewersGroup

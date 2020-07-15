@@ -14,9 +14,21 @@ Resources:
       Path: /
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AdministratorAccess
+  ReviewersGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: Reviewers
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/ReadOnlyAccess
 Outputs:
   AdministratorsGroup:
     Description: The AdministratorsGroup Name
     Value: !Ref AdministratorsGroup
     Export:
       Name: !Sub ${AWS::StackName}-AdministratorsGroup
+  ReviewersGroup:
+    Description: The ReviewersGroup Name
+    Value: !Ref ReviewersGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-ReviewersGroup
