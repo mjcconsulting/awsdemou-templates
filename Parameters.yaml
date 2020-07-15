@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Parameters Template.
+  This creates Systems Manager Parameters. These Parameters are used for System Operation and should be in each Region used.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Stack Dependencies
+        Parameters:
+          - BaselineStackName
+      - Label:
+          default: Environment Configuration
+        Parameters:
+          - EnvironmentName
+      - Label:
+          default: Parameter Configuration
+        Parameters:
+          - AdministratorPassword
+    ParameterLabels:
+      BaselineStackName:
+        default: Baseline Stack Name
+      EnvironmentName:
+        default: Environment Name
+      AdministratorPassword:
+        default: Administrator Password
+Parameters:
+  BaselineStackName:
+    Description: Name of the CloudFormation Stack containing the Baseline Resources
+    Type: String
+    MinLength: 2
+    MaxLength: 64
+    Default: Baseline
+    AllowedPattern: ^[A-Z][-a-zA-Z0-9]*$
+    ConstraintDescription: must begin with an upper case letter and contain alphanumeric characters and dashes.
+  EnvironmentName:
+    Description: Name of the Environment associated with the Stack
+    Type: String
+    Default: Production
+    AllowedValues:
+      - Production
+      - Staging
+      - UAT
+      - QA
+      - Testing
+      - Development
+      - Build
+      - Core
+      - Recovery
+      - Log
+      - Identity
+      - Management
+      - Organization
+    ConstraintDescription: must be Production, Staging, UAT, QA, Testing, Development, Build, Core, Recovery, Log, Identity, Management or Organization.
+  AdministratorPassword:
+    Description: Optional password for the Administrator User
+    Type: String
+    NoEcho: true
+    AllowedPattern: (^$|((?=^.{20,64}$)^[a-z]{1,32}(-[a-z]{1,32}){2,7}$|(?=^.{12,32}$)(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])^.*$))
+    ConstraintDescription: must be 20 to 64 character lowercase hyphenated multiword format,
+      or 12 to 32 character random string format with at least one uppercase, lowercase and digit, if specified.
+Conditions:
+  GenerateAdministratorPassword: !Equals [ !Ref AdministratorPassword, '' ]
+Resources:
+  AdministratorRandomPassword:
+    Type: Custom::RandomPassword
+    Properties:
+      ServiceToken: !ImportValue
+        Fn::Sub: ${BaselineStackName}-RandomPasswordFunctionArn
+      PasswordLength: 24
+      ExcludePunctuation: true
+      #ExcludeUppercase: true
+      #ExcludeNumbers: true
+      #ExcludeCharacters: "!\"#$%&'()*+,./:;<=>?@[\\]^_`{|}~" # Exclude all but hyphen
+    Condition: GenerateAdministratorPassword
+  AdministratorPasswordSecureParameter:
+    Type: Custom::SecureParameter
+    Properties:
+      ServiceToken: !ImportValue
+        Fn::Sub: ${BaselineStackName}-SecureParameterFunctionArn
+      Name: !Sub ${EnvironmentName}-Administrator-Password
+      Value: !If [ GenerateAdministratorPassword, !GetAtt AdministratorRandomPassword.Password, !Ref AdministratorPassword ]
+      AllowedPattern: ^[-a-zA-Z0-9]{20,64}$
+      Description: Password for the Administrator User
+Outputs:
+  AdministratorPassword:
+    Description: The Administrator Password
+    Value: !If [ GenerateAdministratorPassword, !GetAtt AdministratorRandomPassword.Password, !Ref AdministratorPassword ]
+  AdministratorPasswordSecureParameter:
+    Description: The AdministratorPasswordSecureParameter Name
+    Value: !Ref AdministratorPasswordSecureParameter
