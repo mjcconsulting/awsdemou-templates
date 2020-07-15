@@ -34,6 +34,7 @@ Parameters:
       - false
     ConstraintDescription: must be either true or false.
 Conditions:
+  ConfigureGlobal: !Equals [ !Ref 'AWS::Region', us-east-1 ]
   AppendAccountId: !Equals [ !Ref AccountAlias, '' ]
   ConfigureGlacier: !Equals [ !Ref UseGlacier, true ]
 Resources:
@@ -142,6 +143,11 @@ Resources:
         - configurations-${Account}-${AWS::Region}
         - Account: !If [ AppendAccountId, !Ref 'AWS::AccountId', !Ref AccountAlias ]
       AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
       VersioningConfiguration:
         Status: Enabled
       LifecycleConfiguration:
@@ -161,6 +167,38 @@ Resources:
         - Key: Name
           Value: ConfigurationsBucket
     DeletionPolicy: Retain
+  KeysBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub
+        - keys-${Account}
+        - Account: !If [ AppendAccountId, !Ref 'AWS::AccountId', !Ref AccountAlias ]
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: ReduceStorageCostsThenDeletePriorVersions
+            Status: Enabled
+            Prefix: ''
+            Transitions:
+              - StorageClass: STANDARD_IA
+                TransitionInDays: 30
+            ExpirationInDays: 425
+            NoncurrentVersionTransitions:
+              - StorageClass: STANDARD_IA
+                TransitionInDays: 30
+            NoncurrentVersionExpirationInDays: 395
+      Tags:
+        - Key: Name
+          Value: KeysBucket
+    DeletionPolicy: Retain
+    Condition: ConfigureGlobal
 Outputs:
   TemplatesBucket:
     Description: The Templates Bucket Name
@@ -182,3 +220,9 @@ Outputs:
     Value: !Ref ConfigurationsBucket
     Export:
       Name: !Sub ${AWS::StackName}-ConfigurationsBucket
+  KeysBucket:
+    Description: The Keys Bucket Name
+    Value: !Ref KeysBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-KeysBucket
+    Condition: ConfigureGlobal
