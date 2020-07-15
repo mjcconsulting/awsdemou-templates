@@ -1,0 +1,762 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ImagePipelines Template.
+  This creates ImageBuilder Image Pipelines.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Stack Dependencies
+        Parameters:
+          - ImageRecipesStackName
+          - VPCStackName
+          - BuildBucketsStackName
+          - BucketsStackName
+          - TopicsStackName
+          - KeysStackName
+      - Label:
+          default: Resource Dependencies
+        Parameters:
+          - KeyPairName
+      - Label:
+          default: Environment Configuration
+        Parameters:
+          - AccountName
+          - EnvironmentName
+          - EnvironmentType
+      - Label:
+          default: ImageBuilder Configuration
+        Parameters:
+          - ImageBuilderUtilityName
+      - Label:
+          default: Security Configuration
+        Parameters:
+          - AdministratorNetworks
+          - AdministratorNetworkDescriptions
+    ParameterLabels:
+      ImageRecipesStackName:
+        default: Image Recipes Stack Name
+      VPCStackName:
+        default: VPC Stack Name
+      BuildBucketsStackName:
+        default: Build Buckets Stack Name
+      BucketsStackName:
+        default: Buckets Stack Name
+      TopicsStackName:
+        default: Topics Stack Name
+      KeysStackName:
+        default: Keys Stack Name
+      KeyPairName:
+        default: KeyPair Name
+      AccountName:
+        default: Account Name
+      EnvironmentName:
+        default: Environment Name
+      EnvironmentType:
+        default: Environment Type
+      ImageBuilderUtilityName:
+        default: ImageBuilder Utility Name
+      AdministratorNetworks:
+        default: Administrator Networks
+      AdministratorNetworkDescriptions:
+        default: Administrator Network Descriptions
+Parameters:
+  ImageRecipesStackName:
+    Description: Name of the CloudFormation Stack containing ImageBuilder Image Recipes
+    Type: String
+    MinLength: 2
+    MaxLength: 64
+    Default: ImageRecipes
+    AllowedPattern: ^[A-Z][-a-zA-Z0-9]*$
+    ConstraintDescription: must begin with an upper case letter and contain alphanumeric characters and dashes.
+  VPCStackName:
+    Description: Name of the CloudFormation Stack containing the VPC
+    Type: String
+    MinLength: 3
+    MaxLength: 64
+    Default: VPC
+    AllowedPattern: ^[A-Z][-a-zA-Z0-9]*$
+    ConstraintDescription: must begin with an upper case letter and contain alphanumeric characters and dashes.
+  BuildBucketsStackName:
+    Description: Name of the CloudFormation Stack containing Build Buckets
+    Type: String
+    MinLength: 2
+    MaxLength: 64
+    Default: BuildBuckets
+    AllowedPattern: ^[A-Z][-a-zA-Z0-9]*$
+    ConstraintDescription: must begin with an upper case letter and contain alphanumeric characters and dashes.
+  BucketsStackName:
+    Description: Name of the CloudFormation Stack containing Buckets
+    Type: String
+    MinLength: 2
+    MaxLength: 64
+    Default: Buckets
+    AllowedPattern: ^[A-Z][-a-zA-Z0-9]*$
+    ConstraintDescription: must begin with an upper case letter and contain alphanumeric characters and dashes.
+  TopicsStackName:
+    Description: Name of the CloudFormation Stack containing Topics
+    Type: String
+    MinLength: 2
+    MaxLength: 64
+    Default: Topics
+    AllowedPattern: ^[A-Z][-a-zA-Z0-9]*$
+    ConstraintDescription: must begin with an upper case letter and contain alphanumeric characters and dashes.
+  KeysStackName:
+    Description: Name of the CloudFormation Stack containing Keys
+    Type: String
+    MinLength: 2
+    MaxLength: 64
+    Default: Keys
+    AllowedPattern: ^[A-Z][-a-zA-Z0-9]*$
+    ConstraintDescription: must begin with an upper case letter and contain alphanumeric characters and dashes.
+  KeyPairName:
+    Description: Name of an existing KeyPair to enable SSH access to the Instance
+    Type: AWS::EC2::KeyPair::KeyName
+    MaxLength: 32
+    Default: administrator
+    AllowedPattern: ^[_a-zA-Z0-9]*$
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  AccountName:
+    Description: Name of the Account associated with the Stack
+    Type: String
+    Default: Production
+    AllowedValues:
+      - Jumpstart
+      - Build
+      - Production
+      - Development
+    ConstraintDescription: must be Jumpstart, Build, Production or Development.
+  EnvironmentName:
+    Description: Name of the Environment associated with the Stack
+    Type: String
+    Default: Production
+    AllowedValues:
+      - Build
+      - Production
+      - Development
+    ConstraintDescription: must be Build, Production or Development.
+  EnvironmentType:
+    Description: Type of the Environment to build. Used to select size-related options in Mappings
+    Type: String
+    Default: small
+    AllowedValues:
+      - micro
+      - small
+      - medium
+      - large
+      - xlarge
+    ConstraintDescription: must be micro, small, medium, large or xlarge.
+  ImageBuilderUtilityName:
+    Description: Name of the ImageBuilder Utility
+    Type: String
+    MinLength: 2
+    MaxLength: 32
+    Default: ImageBuilder
+    AllowedPattern: ^[A-Z][a-zA-Z0-9]*$
+    ConstraintDescription: must begin with an upper case letter and contain alphanumeric characters.
+  AdministratorNetworks:
+    Description: Networks that can administer the Application
+    Type: String
+    Default: -,-,-,-,-,-,-,-
+    ConstraintDescription: must be a comma-separated list of 8 values, each an IP CIDR range of the form x.x.x.x/x or '-'.
+  AdministratorNetworkDescriptions:
+    Description: Descriptions of networks that can administer the Application
+    Type: String
+    Default: -,-,-,-,-,-,-,-
+    ConstraintDescription: must be a comma-separated list of 8 values, each a short text description or '-'.
+Conditions:
+  ConfigureAccountEnvironment: !Or [ !Not [ !Equals [ !Ref AccountName, !Ref EnvironmentName ]], !Equals [ !Ref AccountName, Jumpstart ]]
+  ConfigureGlobal: !Equals [ !Ref 'AWS::Region', us-east-1 ]
+  ConfigureAdministratorNetwork0: !Not [ !Equals [ !Select [ 0, !Split [ ',', !Ref AdministratorNetworks ]], '-' ]]
+  ConfigureAdministratorNetwork1: !Not [ !Equals [ !Select [ 1, !Split [ ',', !Ref AdministratorNetworks ]], '-' ]]
+  ConfigureAdministratorNetwork2: !Not [ !Equals [ !Select [ 2, !Split [ ',', !Ref AdministratorNetworks ]], '-' ]]
+  ConfigureAdministratorNetwork3: !Not [ !Equals [ !Select [ 3, !Split [ ',', !Ref AdministratorNetworks ]], '-' ]]
+  ConfigureAdministratorNetwork4: !Not [ !Equals [ !Select [ 4, !Split [ ',', !Ref AdministratorNetworks ]], '-' ]]
+  ConfigureAdministratorNetwork5: !Not [ !Equals [ !Select [ 5, !Split [ ',', !Ref AdministratorNetworks ]], '-' ]]
+  ConfigureAdministratorNetwork6: !Not [ !Equals [ !Select [ 6, !Split [ ',', !Ref AdministratorNetworks ]], '-' ]]
+  ConfigureAdministratorNetwork7: !Not [ !Equals [ !Select [ 7, !Split [ ',', !Ref AdministratorNetworks ]], '-' ]]
+Resources:
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/EC2InstanceProfileForImageBuilder
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonSSMDirectoryServiceAccess
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/AmazonInspectorFullAccess
+      Policies:
+        - PolicyName: DownloadScriptFromS3Policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - !Sub
+                    - arn:aws:s3:::${ScriptsBucket}/Linux/*
+                    - ScriptsBucket: !ImportValue
+                        Fn::Sub: ${BucketsStackName}-ScriptsBucket
+                  - !Sub
+                    - arn:aws:s3:::${ScriptsBucket}/WordPress/*
+                    - ScriptsBucket: !ImportValue
+                        Fn::Sub: ${BucketsStackName}-ScriptsBucket
+        - PolicyName: DownloadConfigurationFromS3Policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - !Sub
+                    - arn:aws:s3:::${ConfigurationsBucket}/Linux/*
+                    - ConfigurationsBucket: !ImportValue
+                        Fn::Sub: ${BucketsStackName}-ConfigurationsBucket
+                  - !Sub
+                    - arn:aws:s3:::${ConfigurationsBucket}/WordPress/*
+                    - ConfigurationsBucket: !ImportValue
+                        Fn::Sub: ${BucketsStackName}-ConfigurationsBucket
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub ${EnvironmentName}-${ImageBuilderUtilityName}-InstanceSecurityGroup
+      VpcId: !ImportValue
+        Fn::Sub: ${VPCStackName}-VPC
+      SecurityGroupIngress:
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: !ImportValue
+            Fn::Sub: ${VPCStackName}-VPCNetwork
+          Description: VPC (ICMP)
+        - !If
+          - ConfigureAdministratorNetwork0
+          - IpProtocol: icmp
+            FromPort: -1
+            ToPort: -1
+            CidrIp: !Select [ 0, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (ICMP)
+              - NetworkDescription: !Select [ 0, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork0
+          - IpProtocol: tcp
+            FromPort: 80
+            ToPort: 80
+            CidrIp: !Select [ 0, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (HTTP)
+              - NetworkDescription: !Select [ 0, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork0
+          - IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            CidrIp: !Select [ 0, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (HTTPS)
+              - NetworkDescription: !Select [ 0, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork0
+          - IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIp: !Select [ 0, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (SSH)
+              - NetworkDescription: !Select [ 0, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork0
+          - IpProtocol: tcp
+            FromPort: 3389
+            ToPort: 3389
+            CidrIp: !Select [ 0, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (RDP)
+              - NetworkDescription: !Select [ 0, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork1
+          - IpProtocol: icmp
+            FromPort: -1
+            ToPort: -1
+            CidrIp: !Select [ 1, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (ICMP)
+              - NetworkDescription: !Select [ 1, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork1
+          - IpProtocol: tcp
+            FromPort: 80
+            ToPort: 80
+            CidrIp: !Select [ 1, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (HTTP)
+              - NetworkDescription: !Select [ 1, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork1
+          - IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            CidrIp: !Select [ 1, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (HTTPS)
+              - NetworkDescription: !Select [ 1, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork1
+          - IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIp: !Select [ 1, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (SSH)
+              - NetworkDescription: !Select [ 1, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork1
+          - IpProtocol: tcp
+            FromPort: 3389
+            ToPort: 3389
+            CidrIp: !Select [ 1, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (RDP)
+              - NetworkDescription: !Select [ 1, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork2
+          - IpProtocol: icmp
+            FromPort: -1
+            ToPort: -1
+            CidrIp: !Select [ 2, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (ICMP)
+              - NetworkDescription: !Select [ 2, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork2
+          - IpProtocol: tcp
+            FromPort: 80
+            ToPort: 80
+            CidrIp: !Select [ 2, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (HTTP)
+              - NetworkDescription: !Select [ 2, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork2
+          - IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            CidrIp: !Select [ 2, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (HTTPS)
+              - NetworkDescription: !Select [ 2, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork2
+          - IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIp: !Select [ 2, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (SSH)
+              - NetworkDescription: !Select [ 2, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork2
+          - IpProtocol: tcp
+            FromPort: 3389
+            ToPort: 3389
+            CidrIp: !Select [ 2, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (RDP)
+              - NetworkDescription: !Select [ 2, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork3
+          - IpProtocol: icmp
+            FromPort: -1
+            ToPort: -1
+            CidrIp: !Select [ 3, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (ICMP)
+              - NetworkDescription: !Select [ 3, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork3
+          - IpProtocol: tcp
+            FromPort: 80
+            ToPort: 80
+            CidrIp: !Select [ 3, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (HTTP)
+              - NetworkDescription: !Select [ 3, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork3
+          - IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            CidrIp: !Select [ 3, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (HTTPS)
+              - NetworkDescription: !Select [ 3, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork3
+          - IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIp: !Select [ 3, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (SSH)
+              - NetworkDescription: !Select [ 3, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork3
+          - IpProtocol: tcp
+            FromPort: 3389
+            ToPort: 3389
+            CidrIp: !Select [ 3, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (RDP)
+              - NetworkDescription: !Select [ 3, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork4
+          - IpProtocol: icmp
+            FromPort: -1
+            ToPort: -1
+            CidrIp: !Select [ 4, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (ICMP)
+              - NetworkDescription: !Select [ 4, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork4
+          - IpProtocol: tcp
+            FromPort: 80
+            ToPort: 80
+            CidrIp: !Select [ 4, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (HTTP)
+              - NetworkDescription: !Select [ 4, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork4
+          - IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            CidrIp: !Select [ 4, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (HTTPS)
+              - NetworkDescription: !Select [ 4, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork4
+          - IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIp: !Select [ 4, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (SSH)
+              - NetworkDescription: !Select [ 4, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork4
+          - IpProtocol: tcp
+            FromPort: 3389
+            ToPort: 3389
+            CidrIp: !Select [ 4, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (RDP)
+              - NetworkDescription: !Select [ 4, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork5
+          - IpProtocol: icmp
+            FromPort: -1
+            ToPort: -1
+            CidrIp: !Select [ 5, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (ICMP)
+              - NetworkDescription: !Select [ 5, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork5
+          - IpProtocol: tcp
+            FromPort: 80
+            ToPort: 80
+            CidrIp: !Select [ 5, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (HTTP)
+              - NetworkDescription: !Select [ 5, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork5
+          - IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            CidrIp: !Select [ 5, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (HTTPS)
+              - NetworkDescription: !Select [ 5, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork5
+          - IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIp: !Select [ 5, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (SSH)
+              - NetworkDescription: !Select [ 5, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork5
+          - IpProtocol: tcp
+            FromPort: 3389
+            ToPort: 3389
+            CidrIp: !Select [ 5, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (RDP)
+              - NetworkDescription: !Select [ 5, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork6
+          - IpProtocol: icmp
+            FromPort: -1
+            ToPort: -1
+            CidrIp: !Select [ 6, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (ICMP)
+              - NetworkDescription: !Select [ 6, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork6
+          - IpProtocol: tcp
+            FromPort: 80
+            ToPort: 80
+            CidrIp: !Select [ 6, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (HTTP)
+              - NetworkDescription: !Select [ 6, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork6
+          - IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            CidrIp: !Select [ 6, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (HTTPS)
+              - NetworkDescription: !Select [ 6, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork6
+          - IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIp: !Select [ 6, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (SSH)
+              - NetworkDescription: !Select [ 6, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork6
+          - IpProtocol: tcp
+            FromPort: 3389
+            ToPort: 3389
+            CidrIp: !Select [ 6, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (RDP)
+              - NetworkDescription: !Select [ 6, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork7
+          - IpProtocol: icmp
+            FromPort: -1
+            ToPort: -1
+            CidrIp: !Select [ 7, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (ICMP)
+              - NetworkDescription: !Select [ 7, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork7
+          - IpProtocol: tcp
+            FromPort: 80
+            ToPort: 80
+            CidrIp: !Select [ 7, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (HTTP)
+              - NetworkDescription: !Select [ 7, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork7
+          - IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            CidrIp: !Select [ 7, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (HTTPS)
+              - NetworkDescription: !Select [ 7, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork7
+          - IpProtocol: tcp
+            FromPort: 22
+            ToPort: 22
+            CidrIp: !Select [ 7, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (SSH)
+              - NetworkDescription: !Select [ 7, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+        - !If
+          - ConfigureAdministratorNetwork7
+          - IpProtocol: tcp
+            FromPort: 3389
+            ToPort: 3389
+            CidrIp: !Select [ 7, !Split [ ',', !Ref AdministratorNetworks ]]
+            Description: !Sub
+              - ${NetworkDescription} (RDP)
+              - NetworkDescription: !Select [ 7, !Split [ ',', !Ref AdministratorNetworkDescriptions ]]
+          - !Ref AWS::NoValue
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-${ImageBuilderUtilityName}-InstanceSecurityGroup
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref Role
+  InfrastructureConfiguration:
+    Type: AWS::ImageBuilder::InfrastructureConfiguration
+    Properties:
+      Name: !Sub ${EnvironmentName}-InfrastructureConfiguration
+      Description: !Sub ${EnvironmentName} Infrastructure Configuration
+      InstanceProfileName: !Ref InstanceProfile
+      InstanceTypes:
+        - t3a.medium
+        - m5a.large
+      KeyPair: !Ref KeyPairName
+      #Logging:
+      #  S3Logs:
+      #    S3BucketName: !ImportValue
+      #        Fn::Sub: ${BuildBucketsStackName}-ImageBuilderLogsBucket
+      #    S3KeyPrefix: !Ref EnvironmentName
+      SnsTopicArn: !ImportValue
+        Fn::Sub: ${TopicsStackName}-EventsTopic
+      TerminateInstanceOnFailure: true
+      SecurityGroupIds:
+        - !Ref InstanceSecurityGroup
+      SubnetId: !ImportValue
+        Fn::Sub: ${VPCStackName}-PublicSubnetA
+      Tags:
+        Name: !Sub ${EnvironmentName}-InfrastructureConfiguration
+  HelloWorldLinuxDistributionConfiguration:
+    Type: AWS::ImageBuilder::DistributionConfiguration
+    Properties:
+      Name: !Sub ${EnvironmentName}-HelloWorldLinux-DistributionConfiguration
+      Description: !Sub ${EnvironmentName} HelloWorld Linux Distribution Configuration
+      Distributions:
+        - Region: us-east-1
+          AmiDistributionConfiguration:
+            Name: awsdemou-wordpress-amzn2-ami-{{imagebuilder:buildDate}}
+            Description: AWSDemoUniversity HelloWorld Amazon Linux 2
+        - Region: us-east-2
+          AmiDistributionConfiguration:
+            Name: awsdemou-wordpress-amzn2-ami-{{imagebuilder:buildDate}}
+            Description: AWSDemoUniversity HelloWorld Amazon Linux 2
+        - Region: us-west-2
+          AmiDistributionConfiguration:
+            Name: awsdemou-wordpress-amzn2-ami-{{imagebuilder:buildDate}}
+            Description: AWSDemoUniversity HelloWorld Amazon Linux 2
+      Tags:
+        Name: !Sub ${EnvironmentName}-HelloWorldLinux-DistributionConfiguration
+  HelloWorldLinuxImagePipeline:
+    Type: AWS::ImageBuilder::ImagePipeline
+    Properties:
+      Name: !Sub ${EnvironmentName}-HelloWorldLinux-ImagePipeline
+      Description: !Sub ${EnvironmentName} HelloWorld Linux Image Pipeline
+      ImageRecipeArn: !ImportValue
+          Fn::Sub: ${ImageRecipesStackName}-HelloWorldLinuxImageRecipeArn
+      InfrastructureConfigurationArn: !Ref InfrastructureConfiguration
+      DistributionConfigurationArn: !Ref HelloWorldLinuxDistributionConfiguration
+      ImageTestsConfiguration:
+        ImageTestsEnabled: true
+        TimeoutMinutes: 60
+      Schedule:
+        ScheduleExpression: 'cron(0 0 * * 0)'
+        PipelineExecutionStartCondition: EXPRESSION_MATCH_ONLY
+      Status: DISABLED
+      Tags:
+        Name: !Sub ${EnvironmentName}-HelloWorldLinux-ImagePipeline
+  HelloWorldWindowsDistributionConfiguration:
+    Type: AWS::ImageBuilder::DistributionConfiguration
+    Properties:
+      Name: !Sub ${EnvironmentName}-HelloWorldWindows-DistributionConfiguration
+      Description: !Sub ${EnvironmentName} HelloWorld Windows Distribution Configuration
+      Distributions:
+        - Region: us-east-1
+          AmiDistributionConfiguration:
+            Name: awsdemou-wordpress-windows-ami-{{imagebuilder:buildDate}}
+            Description: AWSDemoUniversity HelloWorld Windows
+        - Region: us-east-2
+          AmiDistributionConfiguration:
+            Name: awsdemou-wordpress-windows-ami-{{imagebuilder:buildDate}}
+            Description: AWSDemoUniversity HelloWorld Windows
+        - Region: us-west-2
+          AmiDistributionConfiguration:
+            Name: awsdemou-wordpress-windows-ami-{{imagebuilder:buildDate}}
+            Description: AWS Demo University HelloWorld Windows
+      Tags:
+        Name: !Sub ${EnvironmentName}-HelloWorldWindows-DistributionConfiguration
+  HelloWorldWindowsImagePipeline:
+    Type: AWS::ImageBuilder::ImagePipeline
+    Properties:
+      Name: !Sub ${EnvironmentName}-HelloWorldWindows-ImagePipeline
+      Description: !Sub ${EnvironmentName} HelloWorld Windows Image Pipeline
+      ImageRecipeArn: !ImportValue
+          Fn::Sub: ${ImageRecipesStackName}-HelloWorldWindowsImageRecipeArn
+      InfrastructureConfigurationArn: !Ref InfrastructureConfiguration
+      DistributionConfigurationArn: !Ref HelloWorldWindowsDistributionConfiguration
+      ImageTestsConfiguration:
+        ImageTestsEnabled: true
+        TimeoutMinutes: 60
+      Schedule:
+        ScheduleExpression: 'cron(0 0 * * 0)'
+        PipelineExecutionStartCondition: EXPRESSION_MATCH_ONLY
+      Status: DISABLED
+      Tags:
+        Name: !Sub ${EnvironmentName}-HelloWorldWindows-ImagePipeline
+Outputs:
+  HelloWorldLinuxImagePipeline:
+    Description: The HelloWorld Linux Image Pipeline
+    Value: !Ref HelloWorldLinuxImagePipeline
+    Export:
+      Name: !Sub ${AWS::StackName}-HelloWorldLinuxImagePipeline
+  HelloWorldWindowsImagePipeline:
+    Description: The HelloWorld Windows Image Pipeline
+    Value: !Ref HelloWorldWindowsImagePipeline
+    Export:
+      Name: !Sub ${AWS::StackName}-HelloWorldWindowsImagePipeline

@@ -1,0 +1,106 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Components Template.
+  This creates ImageBuilder Components. These Components are used for Building new AMIs.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Component Configuration
+        Parameters:
+          - Greeting
+    ParameterLabels:
+      Greeting:
+        default: Greeting
+Parameters:
+  Greeting:
+    Description: Greeting
+    Type: String
+    Default: Hello World
+Resources:
+  HelloWorldLinuxComponent:
+    Type: AWS::ImageBuilder::Component
+    Properties:
+      Name: HelloWorldLinux
+      Platform: Linux
+      Version: '0.0.2'
+      Description: This is a slight variant to the standard HelloWorld Example, which allows for an alternate Greeting.
+      Data: !Sub |
+        name: HelloWorldLinux
+        description: This is a variant of the HelloWorld Sample component, which allows the Greeting to be specified.
+        schemaVersion: 1.0
+
+        phases:
+          - name: build
+            steps:
+              - name: BuildStep1
+                action: ExecuteBash
+                inputs:
+                  commands:
+                    - echo "${Greeting}! Build."
+
+          - name: validate
+            steps:
+              - name: ValidateStep1
+                action: ExecuteBash
+                inputs:
+                  commands:
+                    - echo "${Greeting}! Validate."
+
+          - name: test
+            steps:
+              - name: TestStep1
+                action: ExecuteBash
+                inputs:
+                  commands:
+                    - echo "${Greeting}! Test."
+      Tags:
+        Name: HelloWorldLinux
+  HelloWorldWindowsComponent:
+    Type: AWS::ImageBuilder::Component
+    Properties:
+      Name: HelloWorldWindows
+      Platform: Windows
+      Version: '0.0.2'
+      Description: This is a slight variant to the standard HelloWorld Example, which allows for an alternate Greeting.
+      Data: !Sub |
+        name: HelloWorldWindows
+        description: This is a variant of the HelloWorld Sample component, which allows the Greeting to be specified.
+        schemaVersion: 1.0
+
+        phases:
+          - name: build
+            steps:
+              - name: BuildStep1
+                action: ExecutePowerShell
+                inputs:
+                  commands:
+                    - Write-Host "${Greeting}! Build."
+
+          - name: validate
+            steps:
+              - name: ValidateStep1
+                action: ExecutePowerShell
+                inputs:
+                  commands:
+                    - Write-Host "${Greeting}! Validate."
+
+          - name: test
+            steps:
+              - name: TestStep1
+                action: ExecutePowerShell
+                inputs:
+                  commands:
+                    - Write-Host "${Greeting}! Test."
+      Tags:
+        Name: HelloWorldWindows
+Outputs:
+  HelloWorldLinuxComponentArn:
+    Description: The HelloWorldLinux Component Arn
+    Value: !Ref HelloWorldLinuxComponent
+    Export:
+      Name: !Sub ${AWS::StackName}-HelloWorldLinuxComponentArn
+  HelloWorldWindowsComponentArn:
+    Description: The HelloWorldWindows Component Arn
+    Value: !Ref HelloWorldWindowsComponent
+    Export:
+      Name: !Sub ${AWS::StackName}-HelloWorldWindowsComponentArn

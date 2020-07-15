@@ -1,0 +1,128 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ImageRecipes Template.
+  This creates ImageBuilder Image Recipes. Initially, All these Recipes are based on Amazon Linux 2 or Windows Server 2019.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Stack Dependencies
+        Parameters:
+          - ComponentsStackName
+          - AMIFunctionsStackName
+      - Label:
+          default: Amazon Linux 2 Image Configuration
+        Parameters:
+          - AmazonLinux2Date
+      - Label:
+          default: Windows Server Image Configuration
+        Parameters:
+          - WindowsServerVersion
+          - WindowsServerDate
+    ParameterLabels:
+      ComponentsStackName:
+        default: Components Stack Name
+      AMIFunctionsStackName:
+        default: AMIFunctions Stack Name
+      AmazonLinux2Date:
+        default: Amazon Linux 2 Date
+      WindowsServerVersion:
+        default: Windows Server Version
+      WindowsServerDate:
+        default: Windows Server Date
+Parameters:
+  ComponentsStackName:
+    Description: Name of the CloudFormation Stack containing ImageBuilder Components
+    Type: String
+    MinLength: 2
+    MaxLength: 64
+    Default: Components
+    AllowedPattern: ^[A-Z][-a-zA-Z0-9]*$
+    ConstraintDescription: must begin with an upper case letter and contain alphanumeric characters and dashes.
+  AMIFunctionsStackName:
+    Description: Name of the CloudFormation Stack containing the AMI Functions
+    Type: String
+    MinLength: 2
+    MaxLength: 64
+    Default: AMIFunctions
+    AllowedPattern: ^[A-Z][-a-zA-Z0-9]*$
+    ConstraintDescription: must begin with an upper case letter and contain alphanumeric characters and dashes.
+  AmazonLinux2Date:
+    Description: Optional Amazon Linux 2 Date, specify to select a specific publication date for the Image
+    Type: String
+    Default: ''
+    AllowedPattern: (^$|^20(1[8-9]|[2-9][0-9])(0[1-9]|1[0-2])(0[1-9]|[1-2][0-9]|3[0-1])$)
+    ConstraintDescription: Must be a valid date or blank.
+  WindowsServerVersion:
+    Description: Windows Server Version
+    Type: String
+    Default: Windows Server 2019
+    AllowedValues:
+      - ''
+      - Windows Server 2019
+      - Windows Server 2016
+      - Windows Server 2012 R2
+    ConstraintDescription: Must be a valid Windows version or blank.
+  WindowsServerDate:
+    Description: Optional Windows Date, specify to select a specific publication date for the Image
+    Type: String
+    Default: ''
+    AllowedPattern: (^$|^20(1[6-9]|[2-9][0-9])(0[1-9]|1[0-2])(0[1-9]|[1-2][0-9]|3[0-1])$)
+    ConstraintDescription: Must be a valid date or blank.
+Conditions:
+  ConfigureAmazonLinux2Date: !Not [ !Equals [ !Ref AmazonLinux2Date, '' ]]
+  ConfigureWindowsServerVersion: !Not [ !Equals [ !Ref WindowsServerVersion, '' ]]
+  ConfigureWindowsServerDate: !Not [ !Equals [ !Ref WindowsServerDate, '' ]]
+Resources:
+  AmazonLinux2Image:
+    Type: Custom::AmazonLinux2Image
+    Properties:
+      ServiceToken: !ImportValue
+        Fn::Sub: ${AMIFunctionsStackName}-AmazonLinux2ImageFunctionArn
+      OSDate: !If [ ConfigureAmazonLinux2Date, !Ref AmazonLinux2Date, !Ref 'AWS::NoValue' ]
+  WindowsImage:
+    Type: Custom::WindowsImage
+    Properties:
+      ServiceToken: !ImportValue
+        Fn::Sub: ${AMIFunctionsStackName}-WindowsImageFunctionArn
+      OSName: !If [ ConfigureWindowsServerVersion, !Ref WindowsServerVersion, !Ref 'AWS::NoValue' ]
+      OSDate: !If [ ConfigureWindowsServerDate, !Ref WindowsServerDate, !Ref 'AWS::NoValue' ]
+  HelloWorldLinuxImageRecipe:
+    Type: AWS::ImageBuilder::ImageRecipe
+    Properties:
+      Name: HelloWorldLinux
+      Description: Recipe to create the HelloWorld Linux Image
+      Version: '0.0.2'
+      ParentImage: !Ref AmazonLinux2Image
+      Components:
+        - ComponentArn: arn:aws:imagebuilder:us-east-1:aws:component/update-linux/1.0.0
+        - ComponentArn: arn:aws:imagebuilder:us-east-1:aws:component/stig-build-linux-low/2.6.0
+        - ComponentArn: arn:aws:imagebuilder:us-east-1:aws:component/amazon-cloudwatch-agent-linux/1.0.0
+        - ComponentArn: arn:aws:imagebuilder:us-east-1:aws:component/aws-cli-version-2-linux/1.0.0
+        - ComponentArn: arn:aws:imagebuilder:us-east-1:aws:component/php-7-4-linux/1.0.0
+        - ComponentArn: !ImportValue
+            Fn::Sub: ${ComponentsStackName}-HelloWorldLinuxComponentArn
+      Tags:
+        Name: HelloWorldLinux
+  HelloWorldWindowsImageRecipe:
+    Type: AWS::ImageBuilder::ImageRecipe
+    Properties:
+      Name: HelloWorldWindows
+      Description: Recipe to create the HelloWorld Windows Image
+      Version: '0.0.2'
+      ParentImage: !Ref WindowsImage
+      Components:
+        - ComponentArn: !ImportValue
+            Fn::Sub: ${ComponentsStackName}-HelloWorldWindowsComponentArn
+      Tags:
+        Name: HelloWorldWindows
+Outputs:
+  HelloWorldLinuxImageRecipeArn:
+    Description: The HelloWorld Linux Image Recipe Arn
+    Value: !Ref HelloWorldLinuxImageRecipe
+    Export:
+      Name: !Sub ${AWS::StackName}-HelloWorldLinuxImageRecipeArn
+  HelloWorldWindowsImageRecipeArn:
+    Description: The HelloWorld Windows Image Recipe Arn
+    Value: !Ref HelloWorldWindowsImageRecipe
+    Export:
+      Name: !Sub ${AWS::StackName}-HelloWorldWindowsImageRecipeArn
