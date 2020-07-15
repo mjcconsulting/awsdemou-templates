@@ -750,11 +750,25 @@ Resources:
       Tags:
         Name: !Sub ${EnvironmentName}-HelloWorldWindows-ImagePipeline
 Outputs:
+  InstanceSecurityGroup:
+    Description: The Instance SecurityGroup
+    Value: !Ref InstanceSecurityGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-InstanceSecurityGroup
+  InfrastructureConfiguration:
+    Description: The Infrastructure Configuration
+    Value: !Ref InfrastructureConfiguration
+  HelloWorldLinuxDistributionConfiguration:
+    Description: The HelloWorld Linux DistributionConfiguration
+    Value: !Ref HelloWorldLinuxDistributionConfiguration
   HelloWorldLinuxImagePipeline:
     Description: The HelloWorld Linux Image Pipeline
     Value: !Ref HelloWorldLinuxImagePipeline
     Export:
       Name: !Sub ${AWS::StackName}-HelloWorldLinuxImagePipeline
+  HelloWorldWindowsDistributionConfiguration:
+    Description: The HelloWorld Windows DistributionConfiguration
+    Value: !Ref HelloWorldWindowsDistributionConfiguration
   HelloWorldWindowsImagePipeline:
     Description: The HelloWorld Windows Image Pipeline
     Value: !Ref HelloWorldWindowsImagePipeline
