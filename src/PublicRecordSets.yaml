@@ -14,6 +14,7 @@ Metadata:
         Parameters:
           - SPFTXTValue
           - CheckTXTValue
+          - WWWCNAMEValue
     ParameterLabels:
       PublicHostedZoneStackName:
         default: PublicHostedZone Stack Name
@@ -21,6 +22,8 @@ Metadata:
         default: SPF TXT Value
       CheckTXTValue:
         default: Check TXT Value
+      WWWCNAMEValue:
+        default: WWW CNAME Value
 Parameters:
   PublicHostedZoneStackName:
     Description: Name of the CloudFormation Stack containing the Public HostedZone
@@ -41,9 +44,16 @@ Parameters:
     Default: ''
     AllowedPattern: (^$|^[A-Za-z0-9]{32}$)
     ConstraintDescription: must be a string of 32 alphanumeric characters, if specified.
+  WWWCNAMEValue:
+    Description: Optional value of WWW CNAME Record
+    Type: String
+    Default: ''
+    #AllowedPattern: (^$|^[A-Za-z0-9]{32}$) #TODO: Correct to optional CNAME Pattern
+    ConstraintDescription: must be a a valid CNAME, if specified.
 Conditions:
   ConfigureSPFTXTRecordSet: !Not [ !Equals [ !Ref SPFTXTValue, '' ]]
   ConfigureCheckTXTRecordSet: !Not [ !Equals [ !Ref CheckTXTValue, '' ]]
+  ConfigureWWWCNAMERecordSet: !Not [ !Equals [ !Ref WWWCNAMEValue, '' ]]
 Resources:
   PublicSPFTXTRecordSet:
     Type: AWS::Route53::RecordSet
@@ -73,3 +83,17 @@ Resources:
       ResourceRecords:
         - !Sub '"${CheckTXTValue}"'
     Condition: ConfigureCheckTXTRecordSet
+  PublicWWWCNAMERecordSet:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !ImportValue
+        Fn::Sub: ${PublicHostedZoneStackName}-PublicHostedZone
+      Name: !Sub
+        - www.${PublicDomain}.
+        - PublicDomain: !ImportValue
+            Fn::Sub: ${PublicHostedZoneStackName}-PublicDomain
+      Type: CNAME
+      TTL: 300
+      ResourceRecords:
+        - !Ref WWWCNAMEValue
+    Condition: ConfigureWWWCNAMERecordSet
