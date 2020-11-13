@@ -140,6 +140,32 @@ Resources:
         - Key: Name
           Value: !Sub ${EnvironmentName}-ComponentsBucket
     DeletionPolicy: Retain
+  ArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub
+        - artifacts-${Account}-${AWS::Region}
+        - Account: !If [ AppendAccountId, !Ref 'AWS::AccountId', !Ref AccountAlias ]
+      AccessControl: Private
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: ReduceStorageCostsThenDeletePriorVersions
+            Status: Enabled
+            Prefix: ''
+            Transitions:
+              - StorageClass: STANDARD_IA
+                TransitionInDays: 30
+            ExpirationInDays: 425
+            NoncurrentVersionTransitions:
+              - StorageClass: STANDARD_IA
+                TransitionInDays: 30
+            NoncurrentVersionExpirationInDays: 395
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-ArtifactsBucket
+    DeletionPolicy: Retain
 Outputs:
   ImageBuilderLogsBucket:
     Description: The ImageBuilder Logs Bucket Name
@@ -151,3 +177,8 @@ Outputs:
     Value: !Ref ComponentsBucket
     Export:
       Name: !Sub ${AWS::StackName}-ComponentsBucket
+  ArtifactsBucket:
+    Description: The Artifacts Bucket Name
+    Value: !Ref ArtifactsBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-ArtifactsBucket
