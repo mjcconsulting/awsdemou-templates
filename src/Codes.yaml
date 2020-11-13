@@ -1,6 +1,7 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Codes Template.
-  This creates the Codes Table, then loads it with code data.
+  This creates the Codes Table and loads it with code data used to construct various identifiers.
+  It then creates Lambda Functions used to construct various identifiers which are based on naming conventions.
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -15,6 +16,7 @@ Metadata:
       - Label:
           default: Function Configuration
         Parameters:
+          - AMINameLogRetention
           - AliasNameLogRetention
           - LogGroupNameLogRetention
           - HostNameLogRetention
@@ -24,6 +26,8 @@ Metadata:
         default: Baseline Stack Name
       TableName:
         default: Table Name
+      AMINameLogRetention:
+        default: AMIName Log Retention
       AliasNameLogRetention:
         default: AliasName Log Retention
       LogGroupNameLogRetention:
@@ -49,6 +53,20 @@ Parameters:
     Default: Codes
     AllowedPattern: ^Codes$
     ConstraintDescription: must be Codes.
+  AMINameLogRetention:
+    Description: Number of days to retain CloudWatch Log Events for the AMIName Lambda Function
+    Type: Number
+    Default: 3
+    AllowedValues:
+      - 1
+      - 3
+      - 5
+      - 7
+      - 14
+      - 30
+      - 60
+      - 90
+    ConstraintDescription: must be 1, 3, 5, 7, 14, 30, 60 or 90.
   AliasNameLogRetention:
     Description: Number of days to retain CloudWatch Log Events for the AliasName Lambda Function
     Type: Number
@@ -248,6 +266,9 @@ Resources:
           Name: Demo
           Code: demo
         - Type: Company
+          Name: AWS
+          Code: aws
+        - Type: Company
           Name: Camelz
           Code: cmlz
         - Type: Company
@@ -266,23 +287,26 @@ Resources:
           Name: us-west-2
           Code: uw2
         - Type: Location
-          Name: ap-east-1
-          Code: ae1
-        - Type: Location
-          Name: ap-south-1
-          Code: ad1
-        - Type: Location
-          Name: ap-northeast-2
-          Code: an2
-        - Type: Location
-          Name: ap-southeast-1
+          Name: af-south-1
           Code: as1
         - Type: Location
+          Name: ap-east-1
+          Code: pe1
+        - Type: Location
+          Name: ap-south-1
+          Code: pd1
+        - Type: Location
+          Name: ap-northeast-2
+          Code: pn2
+        - Type: Location
+          Name: ap-southeast-1
+          Code: ps1
+        - Type: Location
           Name: ap-southeast-2
-          Code: as2
+          Code: ps2
         - Type: Location
           Name: ap-northeast-1
-          Code: an1
+          Code: pn1
         - Type: Location
           Name: ca-central-1
           Code: cc1
@@ -295,6 +319,9 @@ Resources:
         - Type: Location
           Name: eu-west-2
           Code: ew2
+        - Type: Location
+          Name: eu-south-1
+          Code: ew3
         - Type: Location
           Name: eu-west-3
           Code: ew3
@@ -392,6 +419,9 @@ Resources:
           Name: Example
           Code: e
         - Type: Environment
+          Name: General
+          Code: g
+        - Type: Environment
           Name: Identity
           Code: i
         - Type: Environment
@@ -428,11 +458,17 @@ Resources:
           Name: Experimental
           Code: x
         - Type: System
+          Name: Demo
+          Code: demo
+        - Type: System
           Name: Prototype
           Code: proto
         - Type: System
-          Name: Analytics
-          Code: anal
+          Name: Website
+          Code: web
+        - Type: System
+          Name: API
+          Code: api
         - Type: System
           Name: DAP
           Code: dap
@@ -456,16 +492,16 @@ Resources:
           Code: aur
         - Type: Application
           Name: LinuxBastion
-          Code: bl
+          Code: lb
         - Type: Application
           Name: LinuxBastions
-          Code: bl
+          Code: lb
         - Type: Application
           Name: WindowsBastion
           Code: bw
         - Type: Application
           Name: WindowsBastions
-          Code: bw
+          Code: wb
         - Type: Application
           Name: CentralDatabase
           Code: cdb
