@@ -1,0 +1,27 @@
+#!/bin/bash
+#
+# AWS Demo University - Publish Templates
+#
+
+bindir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+rootdir=${bindir%/*}
+srcdir=$rootdir/src
+bucketdir=$rootdir/bucket
+
+echo "Creating Templates"
+echo " - src   : $srcdir"
+echo " - bucket: $bucketdir"
+
+pushd $srcdir &> /dev/null
+for template in $(ls -1 *.{yaml,json} 2> /dev/null); do
+  echo -n "- ${template%.*}... "
+  mkdir -p $bucketdir/${template%.*}
+  md5=$(md5 -q $srcdir/$template)
+  if [ ! -f $bucketdir/${template%.*}/$md5.${template#*.} ]; then
+    echo "Published ($md5.${template#*.})"
+    cp $srcdir/$template $bucketdir/${template%.*}/$md5.${template#*.}
+  else
+    echo "Unchanged"
+  fi
+done
+popd &> /dev/null
