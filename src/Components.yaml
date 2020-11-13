@@ -5,92 +5,73 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
+          default: Stack Dependencies
+        Parameters:
+          - BuildBucketsStackName
+      - Label:
           default: Component Configuration
         Parameters:
-          - Greeting
+          - HelloWorldLinuxComponentS3Key
+          - HelloWorldWindowsComponentS3Key
     ParameterLabels:
-      Greeting:
-        default: Greeting
+      BuildBucketsStackName:
+        default: BuildBuckets Stack Name
+      HelloWorldLinuxComponentS3Key:
+        default: HelloWorldLinux Component S3 Key
+      HelloWorldWindowsComponentS3Key:
+        default: HelloWorldWindows Component S3 Key
 Parameters:
-  Greeting:
-    Description: Greeting
+  BuildBucketsStackName:
+    Description: Name of the CloudFormation Stack containing Build Buckets
     Type: String
-    Default: Hello World
+    MinLength: 2
+    MaxLength: 64
+    Default: BuildBuckets
+    AllowedPattern: ^[A-Z][-a-zA-Z0-9]*$
+    ConstraintDescription: must begin with an upper case letter and contain alphanumeric characters and dashes.
+  HelloWorldLinuxComponentS3Key:
+    Description: Key of Object within the S3 Bucket containing the HelloWorldLinux Component document
+    Type: String
+    MinLength: 2
+    MaxLength: 64
+    Default: HelloWorldLinux.yaml
+    AllowedPattern: ^HelloWorldLinux(\/[0-9a-f]{32})?\.yaml$
+    ConstraintDescription: must be HelloWorldLinux.yaml, or HelloWorldLinux/<md5_hash>.yaml.
+  HelloWorldWindowsComponentS3Key:
+    Description: Key of Object within the S3 Bucket containing the HelloWorldWindows Component document
+    Type: String
+    MinLength: 2
+    MaxLength: 64
+    Default: HelloWorldWindows.yaml
+    AllowedPattern: ^HelloWorldWindows(\/[0-9a-f]{32})?\.yaml$
+    ConstraintDescription: must be HelloWorldWindows.yaml, or HelloWorldWindows/<md5_hash>.yaml.
 Resources:
   HelloWorldLinuxComponent:
     Type: AWS::ImageBuilder::Component
     Properties:
       Name: HelloWorldLinux
+      Description: This is a variant of the HelloWorld Sample component, which uses a constant for the Greeting.
       Platform: Linux
-      Version: '0.0.2'
-      Description: This is a slight variant to the standard HelloWorld Example, which allows for an alternate Greeting.
-      Data: !Sub |
-        name: HelloWorldLinux
-        description: This is a variant of the HelloWorld Sample component, which allows the Greeting to be specified.
-        schemaVersion: 1.0
-
-        phases:
-          - name: build
-            steps:
-              - name: BuildStep1
-                action: ExecuteBash
-                inputs:
-                  commands:
-                    - echo "${Greeting}! Build."
-
-          - name: validate
-            steps:
-              - name: ValidateStep1
-                action: ExecuteBash
-                inputs:
-                  commands:
-                    - echo "${Greeting}! Validate."
-
-          - name: test
-            steps:
-              - name: TestStep1
-                action: ExecuteBash
-                inputs:
-                  commands:
-                    - echo "${Greeting}! Test."
+      Version: '0.0.1'
+      ChangeDescription: Initial version
+      Uri: !Sub
+        - s3://${S3Bucket}/${HelloWorldLinuxComponentS3Key}
+        - S3Bucket: !ImportValue
+            Fn::Sub: ${BuildBucketsStackName}-ComponentsBucket
       Tags:
         Name: HelloWorldLinux
   HelloWorldWindowsComponent:
     Type: AWS::ImageBuilder::Component
     Properties:
       Name: HelloWorldWindows
+      Description: This is a variant of the HelloWorld Sample component, which uses a constant for the Greeting.
       Platform: Windows
-      Version: '0.0.2'
-      Description: This is a slight variant to the standard HelloWorld Example, which allows for an alternate Greeting.
-      Data: !Sub |
-        name: HelloWorldWindows
-        description: This is a variant of the HelloWorld Sample component, which allows the Greeting to be specified.
-        schemaVersion: 1.0
-
-        phases:
-          - name: build
-            steps:
-              - name: BuildStep1
-                action: ExecutePowerShell
-                inputs:
-                  commands:
-                    - Write-Host "${Greeting}! Build."
-
-          - name: validate
-            steps:
-              - name: ValidateStep1
-                action: ExecutePowerShell
-                inputs:
-                  commands:
-                    - Write-Host "${Greeting}! Validate."
-
-          - name: test
-            steps:
-              - name: TestStep1
-                action: ExecutePowerShell
-                inputs:
-                  commands:
-                    - Write-Host "${Greeting}! Test."
+      Version: '0.0.1'
+      ChangeDescription: Initial version
+      Uri: !Sub
+        - s3://${S3Bucket}/${HelloWorldWindowsComponentS3Key}
+        - S3Bucket: !ImportValue
+            Fn::Sub: ${BuildBucketsStackName}-ComponentsBucket
       Tags:
         Name: HelloWorldWindows
 Outputs:
